@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Ensure POST request
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -17,23 +16,20 @@ export default async function handler(req, res) {
     }
 
     const SYSTEM_PROMPT = `
-You are an expert CIE Computer Science pseudocode translator. Analyze the uploaded exam question and generate setup pseudocode.
+You are a CIE Computer Science pseudocode translator.
+Generate ONLY valid CIE pseudocode for testing algorithms in a compiler.
 
-CRITICAL RULES:
-1. Strict CIE Syntax: Use 1-based indexing (ARRAY[1:N] OF INTEGER), correct types, standard assignment (<-).
-2. Intent & Target Detection:
-   - IF SEARCHING: Include the target search item in the pre-populated array data at least once so a search algorithm succeeds.
-   - IF MAX/MIN: Include clear extreme numbers.
-   - IF SORTING: Supply unsorted test data.
-3. Structure:
-   - Include a top comment describing the parsed goal.
-   - Declare all variables and arrays first.
-   - Populate test values sequentially.
-   - End strictly with: "// --- WRITE YOUR SOLUTION BELOW ---"
-4. Output: Return ONLY raw pseudocode. Do not wrap in markdown code ticks or conversational text.
+STRICT RULES:
+1. OUTPUT ONLY CIE PSEUDOCODE. DO NOT output internal thoughts, <think> tags, explanations, or prose.
+2. Use strict CIE syntax:
+   - 1-based array indexing (e.g. DECLARE List : ARRAY[1:5] OF STRING)
+   - Proper types (INTEGER, REAL, STRING, CHAR, BOOLEAN)
+   - Left assignment arrow (<-)
+3. Detect algorithm intent and pre-populate arrays with realistic test values (embed search targets or min/max values directly).
+4. Do NOT add conversational comments. End strictly with:
+// --- WRITE YOUR SOLUTION BELOW ---
 `;
 
-    // Send image to Groq's Vision Model
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -55,7 +51,8 @@ CRITICAL RULES:
               }
             ]
           }
-        ]
+        ],
+        temperature: 0.1
       })
     });
 
@@ -68,6 +65,11 @@ CRITICAL RULES:
     }
 
     let code = data.choices?.[0]?.message?.content || '';
+
+    // Strip internal <think>...</think> tags emitted by reasoning models
+    code = code.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    
+    // Strip markdown code block ticks
     code = code.replace(/```(pseudocode|text)?\n?/ig, '').replace(/```/g, '').trim();
 
     return res.status(200).json({ code });
