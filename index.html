@@ -52,7 +52,7 @@
             gap: 1rem;
             margin-top: 1rem;
         }
-        button {
+        button, .btn-secondary {
             color: white;
             border: none;
             padding: 0.75rem 1.5rem;
@@ -62,6 +62,8 @@
             transition: background-color 0.2s;
             width: 100%;
             font-size: 1rem;
+            text-align: center;
+            box-sizing: border-box;
         }
         .btn-primary { background-color: var(--primary); }
         .btn-primary:hover { background-color: #1d4ed8; }
@@ -74,7 +76,6 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-sizing: border-box;
         }
         .btn-secondary:hover { background-color: var(--border); }
         .output-area { margin-top: 2rem; display: none; }
@@ -85,8 +86,13 @@
             overflow-x: auto;
             border: 1px solid var(--border);
             color: var(--accent);
+            white-space: pre-wrap;
+            font-family: monospace;
         }
-        .copy-btn { background-color: #059669; margin-top: 0.5rem; }
+        .copy-btn {
+            background-color: #059669;
+            margin-top: 0.5rem;
+        }
         .copy-btn:hover { background-color: #047857; }
     </style>
 </head>
@@ -94,7 +100,7 @@
 
 <div class="container">
     <h2>CIE Setup Generator</h2>
-    <p>Upload an exam question to automatically generate the pre-populated test arrays and variables you need to test your logic.</p>
+    <p>Upload an exam question to automatically generate clean, pre-populated test data for the compiler.</p>
 
     <div class="form-group">
         <label for="imageUpload">Upload Exam Question (Image)</label>
@@ -109,7 +115,7 @@
     <div class="output-area" id="outputArea">
         <label>Generated CIE Pseudocode:</label>
         <pre><code id="codeOutput"></code></pre>
-        <button class="copy-btn" onclick="copyToClipboard()">Copy Code</button>
+        <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Clean Code</button>
     </div>
 </div>
 
@@ -137,7 +143,6 @@
                 reader.readAsDataURL(file);
             });
 
-            // Make a request to our hidden Vercel backend instead of Gemini directly
             const response = await fetch('/api/generate', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -166,8 +171,13 @@
 
     function copyToClipboard() {
         const code = document.getElementById('codeOutput').textContent;
+        const copyBtn = document.getElementById('copyBtn');
+        
         navigator.clipboard.writeText(code).then(() => {
-            alert("Copied! Now click 'Open Compiler' and paste it on line 1.");
+            copyBtn.textContent = "Copied to Clipboard!";
+            setTimeout(() => {
+                copyBtn.textContent = "Copy Clean Code";
+            }, 2000);
         });
     }
 </script>
