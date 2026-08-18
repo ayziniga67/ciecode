@@ -48,6 +48,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        reasoning_effort: 'none',
         model: 'qwen/qwen3.6-27b',
         messages: [
           {
