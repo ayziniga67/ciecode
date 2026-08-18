@@ -19,12 +19,13 @@ export default async function handler(req, res) {
 You are an expert CIE Computer Science (Paper 2 / 9618) Pseudocode Data Generator. 
 Analyze the uploaded exam question and generate ONLY the setup pseudocode (variable declarations and mock test data).
 
+CRITICAL RULE: If you must think, plan, or explain anything before writing the code, YOU MUST PUT EVERY SINGLE WORD OF YOUR THOUGHTS INSIDE A PSEUDOCODE COMMENT starting with "//". Do not use <think> tags.
+
 STRICT OUTPUT RULES:
 1. NEVER SOLVE THE ALGORITHM. Only provide the setup data required for testing.
-2. NO CONVERSATIONAL TEXT. Do not say "Here is the code" or explain your reasoning.
-3. NO INTERNAL TAGS. Do not output <think> tags.
-4. NO MARKDOWN TICKS. Output raw text only.
-5. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
+2. NO CONVERSATIONAL TEXT outside of "//" comments.
+3. NO MARKDOWN TICKS (do not use \`\`\` or \`\`\`pseudocode). Output raw text only.
+4. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
 
 CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 - Keywords: Must be UPPERCASE (DECLARE, TYPE, ENDTYPE, ARRAY, OF, INTEGER, REAL, STRING, BOOLEAN, CHAR, DATE).
@@ -38,11 +39,9 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
   ENDTYPE
   DECLARE Class : ARRAY[1:30] OF Student
   Class[1].Name <- "Alice"
-- Data Population: 
-  - If testing a sort (like Bubble Sort), provide UNSORTED data. 
-  - If testing a search, ensure the target exists in the mock data.
 `;
 
+    // Switching to a fast, reliable model less prone to massive unformatted reasoning blocks
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -50,7 +49,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b', // Standard vision model for Groq
+        model: 'llama-3.2-11b-vision-preview', 
         messages: [
           {
             role: 'user',
@@ -65,7 +64,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
             ]
           }
         ],
-        temperature: 0.1 // Low temperature for strict adherence to rules
+        temperature: 0.1 
       })
     });
 
@@ -79,13 +78,12 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 
     let code = data.choices?.[0]?.message?.content || '';
 
-    // Clean the output: Strip <think> tags, markdown, and trim whitespace
-    code = code.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    // Strip markdown code block ticks just in case the model ignores rule 3
     code = code.replace(/```(pseudocode|text)?\n?/ig, '');
     code = code.replace(/```/g, '');
     code = code.trim();
 
-    // Failsafe: Ensure it ends with the required comment if the AI missed it
+    // Failsafe: Ensure it ends with the required comment
     if (!code.includes('// --- WRITE YOUR SOLUTION BELOW ---')) {
         code += '\n\n// --- WRITE YOUR SOLUTION BELOW ---';
     }
