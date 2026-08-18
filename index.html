@@ -100,7 +100,7 @@
 
 <div class="container">
     <h2>CIE Setup Generator</h2>
-    <p>Upload an exam question to automatically generate clean, pre-populated test data for the compiler.</p>
+    <p>Upload an exam question to automatically generate strictly formatted test data for the PapersDock compiler.</p>
 
     <div class="form-group">
         <label for="imageUpload">Upload Exam Question (Image)</label>
@@ -133,6 +133,7 @@
 
         btn.disabled = true;
         btn.textContent = "Analyzing Question...";
+        outputArea.style.display = "none";
 
         try {
             const file = fileInput.files[0];
@@ -151,6 +152,14 @@
                     mimeType: file.type
                 })
             });
+
+            // Prevent crashing if Vercel returns an HTML error page (e.g., payload too large)
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const textError = await response.text();
+                console.error("Server HTML Error:", textError);
+                throw new Error("The server crashed. The image might be too large (over 4.5MB) or the API timed out.");
+            }
 
             const data = await response.json();
 
@@ -175,8 +184,10 @@
         
         navigator.clipboard.writeText(code).then(() => {
             copyBtn.textContent = "Copied to Clipboard!";
+            copyBtn.style.backgroundColor = "#047857";
             setTimeout(() => {
                 copyBtn.textContent = "Copy Clean Code";
+                copyBtn.style.backgroundColor = "#059669";
             }, 2000);
         });
     }
