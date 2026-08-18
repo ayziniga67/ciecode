@@ -19,13 +19,10 @@ export default async function handler(req, res) {
 You are an expert CIE Computer Science (Paper 2 / 9618) Pseudocode Data Generator. 
 Analyze the uploaded exam question and generate ONLY the setup pseudocode (variable declarations and mock test data).
 
-CRITICAL RULE: If you must think, plan, or explain anything before writing the code, YOU MUST PUT EVERY SINGLE WORD OF YOUR THOUGHTS INSIDE A PSEUDOCODE COMMENT starting with "//". Do not use <think> tags.
-
 STRICT OUTPUT RULES:
 1. NEVER SOLVE THE ALGORITHM. Only provide the setup data required for testing.
-2. NO CONVERSATIONAL TEXT outside of "//" comments.
-3. NO MARKDOWN TICKS (do not use \`\`\` or \`\`\`pseudocode). Output raw text only.
-4. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
+2. NO CONVERSATIONAL TEXT.
+3. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
 
 CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 - Keywords: Must be UPPERCASE (DECLARE, TYPE, ENDTYPE, ARRAY, OF, INTEGER, REAL, STRING, BOOLEAN, CHAR, DATE).
@@ -41,7 +38,6 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
   Class[1].Name <- "Alice"
 `;
 
-    // Switching to a fast, reliable model less prone to massive unformatted reasoning blocks
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -49,7 +45,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b', 
+        model: 'qwen/qwen3.6-27b', // Back to Qwen!
         messages: [
           {
             role: 'user',
@@ -78,7 +74,22 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 
     let code = data.choices?.[0]?.message?.content || '';
 
-    // Strip markdown code block ticks just in case the model ignores rule 3
+    // --- NEW: INTERCEPT AND CONVERT THOUGHTS TO COMMENTS ---
+    const thinkMatch = code.match(/<think>([\s\S]*?)<\/think>/i);
+    if (thinkMatch) {
+        const thoughts = thinkMatch[1];
+        
+        // Split the thoughts line by line, trim whitespace, and add "// " to the front
+        const commentedThoughts = thoughts
+            .split('\n')
+            .map(line => '// ' + line.trim())
+            .join('\n');
+            
+        // Replace the raw <think> block with the safely commented version
+        code = code.replace(/<think>[\s\S]*?<\/think>/i, commentedThoughts);
+    }
+
+    // Strip markdown code block ticks just in case
     code = code.replace(/```(pseudocode|text)?\n?/ig, '');
     code = code.replace(/```/g, '');
     code = code.trim();
