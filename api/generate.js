@@ -22,7 +22,9 @@ Analyze the uploaded exam question and generate ONLY the setup pseudocode (varia
 STRICT OUTPUT RULES:
 1. NEVER SOLVE THE ALGORITHM. Only provide the setup data required for testing.
 2. NO CONVERSATIONAL TEXT.
-3. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
+3. SEPERATE THE CODE FROM YOUR THOUGHTS.
+4. ANY THINKING TO BE DONE SHOULD HAVE // BEFORE IT OR BEFORE THE FOLLOWING LINE STARTS.
+5. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
 
 CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 - Keywords: Must be UPPERCASE (DECLARE, TYPE, ENDTYPE, ARRAY, OF, INTEGER, REAL, STRING, BOOLEAN, CHAR, DATE).
@@ -45,7 +47,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b', // Back to Qwen!
+        model: 'qwen/qwen3.6-27b',
         messages: [
           {
             role: 'user',
@@ -74,27 +76,16 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 
     let code = data.choices?.[0]?.message?.content || '';
 
-    // --- NEW: INTERCEPT AND CONVERT THOUGHTS TO COMMENTS ---
-    const thinkMatch = code.match(/<think>([\s\S]*?)<\/think>/i);
-    if (thinkMatch) {
-        const thoughts = thinkMatch[1];
-        
-        // Split the thoughts line by line, trim whitespace, and add "// " to the front
-        const commentedThoughts = thoughts
-            .split('\n')
-            .map(line => '// ' + line.trim())
-            .join('\n');
-            
-        // Replace the raw <think> block with the safely commented version
-        code = code.replace(/<think>[\s\S]*?<\/think>/i, commentedThoughts);
-    }
+    // --- PROGRAMMATIC REMOVAL OF THOUGHTS ---
+    // This function completely deletes the <think>...</think> block and everything inside it
+    code = code.replace(/<think>[\s\S]*?<\/think>/gi, '');
 
-    // Strip markdown code block ticks just in case
+    // Strip markdown code block ticks
     code = code.replace(/```(pseudocode|text)?\n?/ig, '');
     code = code.replace(/```/g, '');
     code = code.trim();
 
-    // Failsafe: Ensure it ends with the required comment
+    // Failsafe: Ensure it ends with the required separator
     if (!code.includes('// --- WRITE YOUR SOLUTION BELOW ---')) {
         code += '\n\n// --- WRITE YOUR SOLUTION BELOW ---';
     }
