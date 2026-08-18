@@ -16,18 +16,31 @@ export default async function handler(req, res) {
     }
 
     const SYSTEM_PROMPT = `
-You are a CIE Computer Science pseudocode translator.
-Generate ONLY valid CIE pseudocode for testing algorithms in a compiler.
+You are an expert CIE Computer Science (Paper 2 / 9618) Pseudocode Data Generator. 
+Analyze the uploaded exam question and generate ONLY the setup pseudocode (variable declarations and mock test data).
 
-STRICT RULES:
-1. OUTPUT ONLY CIE PSEUDOCODE. DO NOT output internal thoughts, <think> tags, explanations, or prose.
-2. Use strict CIE syntax:
-   - 1-based array indexing (e.g. DECLARE List : ARRAY[1:5] OF STRING)
-   - Proper types (INTEGER, REAL, STRING, CHAR, BOOLEAN)
-   - Left assignment arrow (<-)
-3. Detect algorithm intent and pre-populate arrays with realistic test values (embed search targets or min/max values directly).
-4. Do NOT add conversational comments. End strictly with:
-// --- WRITE YOUR SOLUTION BELOW ---
+STRICT OUTPUT RULES:
+1. NEVER SOLVE THE ALGORITHM. Only provide the setup data required for testing.
+2. NO CONVERSATIONAL TEXT. Do not say "Here is the code" or explain your reasoning.
+3. NO INTERNAL TAGS. Do not output <think> tags.
+4. NO MARKDOWN TICKS. Output raw text only.
+5. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
+
+CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
+- Keywords: Must be UPPERCASE (DECLARE, TYPE, ENDTYPE, ARRAY, OF, INTEGER, REAL, STRING, BOOLEAN, CHAR, DATE).
+- Assignment: Must use the left arrow (<-). Never use = or :=.
+- Variables: DECLARE VariableName : DATA_TYPE
+- 1D Arrays: DECLARE ListName : ARRAY[1:10] OF INTEGER (Always 1-based indexing).
+- 2D Arrays: DECLARE GridName : ARRAY[1:10, 1:10] OF STRING
+- Records: 
+  TYPE Student
+      DECLARE Name : STRING
+  ENDTYPE
+  DECLARE Class : ARRAY[1:30] OF Student
+  Class[1].Name <- "Alice"
+- Data Population: 
+  - If testing a sort (like Bubble Sort), provide UNSORTED data. 
+  - If testing a search, ensure the target exists in the mock data.
 `;
 
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -37,7 +50,7 @@ STRICT RULES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
+        model: 'qwen/qwen3.6-27b', // Standard vision model for Groq
         messages: [
           {
             role: 'user',
@@ -52,7 +65,7 @@ STRICT RULES:
             ]
           }
         ],
-        temperature: 0.1
+        temperature: 0.1 // Low temperature for strict adherence to rules
       })
     });
 
@@ -66,11 +79,16 @@ STRICT RULES:
 
     let code = data.choices?.[0]?.message?.content || '';
 
-    // Strip internal <think>...</think> tags emitted by reasoning models
+    // Clean the output: Strip <think> tags, markdown, and trim whitespace
     code = code.replace(/<think>[\s\S]*?<\/think>/gi, '');
-    
-    // Strip markdown code block ticks
-    code = code.replace(/```(pseudocode|text)?\n?/ig, '').replace(/```/g, '').trim();
+    code = code.replace(/```(pseudocode|text)?\n?/ig, '');
+    code = code.replace(/```/g, '');
+    code = code.trim();
+
+    // Failsafe: Ensure it ends with the required comment if the AI missed it
+    if (!code.includes('// --- WRITE YOUR SOLUTION BELOW ---')) {
+        code += '\n\n// --- WRITE YOUR SOLUTION BELOW ---';
+    }
 
     return res.status(200).json({ code });
 
