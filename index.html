@@ -7,6 +7,7 @@
     <style>
         :root {
             --primary: #2563eb;
+            --solution: #7c3aed;
             --background: #0f172a;
             --card: #1e293b;
             --text: #f8fafc;
@@ -28,7 +29,7 @@
             padding: 2rem;
             border-radius: 12px;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             border: 1px solid var(--border);
         }
@@ -49,25 +50,31 @@
         }
         .button-group {
             display: flex;
-            gap: 1rem;
+            gap: 0.75rem;
             margin-top: 1rem;
+            flex-wrap: wrap;
         }
         button, .btn-secondary {
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
+            padding: 0.75rem 1rem;
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s;
-            width: 100%;
-            font-size: 1rem;
+            flex: 1;
+            font-size: 0.9rem;
             text-align: center;
             box-sizing: border-box;
+            white-space: nowrap;
         }
         .btn-primary { background-color: var(--primary); }
         .btn-primary:hover { background-color: #1d4ed8; }
-        .btn-primary:disabled { background-color: var(--text-muted); cursor: not-allowed; }
+        .btn-solution { background-color: var(--solution); }
+        .btn-solution:hover { background-color: #6d28d9; }
+        
+        button:disabled { background-color: var(--text-muted) !important; cursor: not-allowed; }
+        
         .btn-secondary {
             background-color: transparent;
             border: 2px solid var(--border);
@@ -78,7 +85,41 @@
             justify-content: center;
         }
         .btn-secondary:hover { background-color: var(--border); }
+        
         .output-area { margin-top: 2rem; display: none; }
+        
+        /* New Tab Styles */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+        .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 0.5rem 1rem;
+            font-size: 0.95rem;
+            border-radius: 6px 6px 0 0;
+            flex: 0;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            background: var(--border);
+            color: var(--text);
+            font-weight: bold;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
         pre {
             background-color: #000;
             padding: 1rem;
@@ -88,10 +129,13 @@
             color: var(--accent);
             white-space: pre-wrap;
             font-family: monospace;
+            margin-top: 0;
         }
         .copy-btn {
             background-color: #059669;
-            margin-top: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            flex: 0;
         }
         .copy-btn:hover { background-color: #047857; }
     </style>
@@ -99,8 +143,8 @@
 <body>
 
 <div class="container">
-    <h2>CIE Setup Generator</h2>
-    <p>Upload an exam question to automatically generate strictly formatted test data for the PapersDock compiler.</p>
+    <h2>CIE Setup & Solution Generator</h2>
+    <p>Upload an exam question. Generate setup data to test your logic, or generate the AI solution to check your answer.</p>
 
     <div class="form-group">
         <label for="imageUpload">Upload Exam Question (Image)</label>
@@ -108,32 +152,63 @@
     </div>
 
     <div class="button-group">
-        <button id="generateBtn" class="btn-primary" onclick="generateCode()">Generate Test Data</button>
+        <button id="btn-setup" class="btn-primary" onclick="generateCode('setup')">Generate Setup Data</button>
+        <button id="btn-solution" class="btn-solution" onclick="generateCode('solution')">Solve Question</button>
         <a href="https://www.papersdock.com/pseudocode" target="_blank" class="btn-secondary">Open Compiler</a>
     </div>
 
     <div class="output-area" id="outputArea">
-        <label>Generated CIE Pseudocode:</label>
-        <pre><code id="codeOutput"></code></pre>
-        <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Clean Code</button>
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-setup" onclick="switchTab('setup')">Setup Code</button>
+            <button class="tab-btn" id="tab-solution" onclick="switchTab('solution')">Solution Code</button>
+        </div>
+        
+        <div class="output-header">
+            <label id="output-label">Generated CIE Setup:</label>
+            <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Code</button>
+        </div>
+        
+        <pre><code id="code-setup"></code><code id="code-solution" style="display: none;"></code></pre>
     </div>
 </div>
 
 <script>
-    async function generateCode() {
+    let currentTab = 'setup';
+
+    function switchTab(tabName) {
+        currentTab = tabName;
+        
+        // Update tab buttons visually
+        document.getElementById('tab-setup').classList.toggle('active', tabName === 'setup');
+        document.getElementById('tab-solution').classList.toggle('active', tabName === 'solution');
+        
+        // Update label
+        document.getElementById('output-label').textContent = tabName === 'setup' ? 'Generated CIE Setup:' : 'Generated CIE Solution:';
+        
+        // Toggle visibility of code blocks
+        document.getElementById('code-setup').style.display = tabName === 'setup' ? 'block' : 'none';
+        document.getElementById('code-solution').style.display = tabName === 'solution' ? 'block' : 'none';
+    }
+
+    async function generateCode(mode) {
         const fileInput = document.getElementById('imageUpload');
-        const btn = document.getElementById('generateBtn');
+        const setupBtn = document.getElementById('btn-setup');
+        const solutionBtn = document.getElementById('btn-solution');
         const outputArea = document.getElementById('outputArea');
-        const codeOutput = document.getElementById('codeOutput');
+        const targetCodeBlock = document.getElementById(`code-${mode}`);
 
         if (!fileInput.files[0]) {
             alert("Please select an image first.");
             return;
         }
 
-        btn.disabled = true;
-        btn.textContent = "Analyzing Question...";
-        outputArea.style.display = "none";
+        // Disable buttons during processing
+        setupBtn.disabled = true;
+        solutionBtn.disabled = true;
+        
+        const originalText = mode === 'setup' ? "Generate Setup Data" : "Solve Question";
+        const loadingBtn = mode === 'setup' ? setupBtn : solutionBtn;
+        loadingBtn.textContent = "Analyzing...";
 
         try {
             const file = fileInput.files[0];
@@ -144,21 +219,21 @@
                 reader.readAsDataURL(file);
             });
 
+            // Send the mode alongside the image so the backend knows which prompt to use
             const response = await fetch('/api/generate', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     image: base64Data,
-                    mimeType: file.type
+                    mimeType: file.type,
+                    mode: mode 
                 })
             });
 
-            // Prevent crashing if Vercel returns an HTML error page (e.g., payload too large)
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
                 const textError = await response.text();
-                console.error("Server HTML Error:", textError);
-                throw new Error("The server crashed. The image might be too large (over 4.5MB) or the API timed out.");
+                throw new Error("The server crashed. The image might be too large or the API timed out.");
             }
 
             const data = await response.json();
@@ -167,26 +242,37 @@
                 throw new Error(data.error || "Failed to generate code.");
             }
 
-            codeOutput.textContent = data.code;
+            // Display the generated code in the correct block and auto-switch tabs
+            targetCodeBlock.textContent = data.code;
             outputArea.style.display = "block";
+            switchTab(mode);
 
         } catch (error) {
             alert("Error: " + error.message);
         } finally {
-            btn.disabled = false;
-            btn.textContent = "Generate Test Data";
+            // Restore button states
+            setupBtn.disabled = false;
+            solutionBtn.disabled = false;
+            setupBtn.textContent = "Generate Setup Data";
+            solutionBtn.textContent = "Solve Question";
         }
     }
 
     function copyToClipboard() {
-        const code = document.getElementById('codeOutput').textContent;
+        // Copy only the text from the currently active tab
+        const codeToCopy = document.getElementById(`code-${currentTab}`).textContent;
         const copyBtn = document.getElementById('copyBtn');
         
-        navigator.clipboard.writeText(code).then(() => {
-            copyBtn.textContent = "Copied to Clipboard!";
+        if (!codeToCopy) {
+            alert("Nothing to copy yet!");
+            return;
+        }
+        
+        navigator.clipboard.writeText(codeToCopy).then(() => {
+            copyBtn.textContent = "Copied!";
             copyBtn.style.backgroundColor = "#047857";
             setTimeout(() => {
-                copyBtn.textContent = "Copy Clean Code";
+                copyBtn.textContent = "Copy Code";
                 copyBtn.style.backgroundColor = "#059669";
             }, 2000);
         });
