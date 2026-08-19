@@ -4,7 +4,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { image, mimeType } = req.body;
+    // We now extract "mode" from the frontend request to know which prompt to use
+    const { image, mimeType, mode } = req.body; 
     const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
@@ -15,7 +16,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No image uploaded.' });
     }
 
-    const SYSTEM_PROMPT = `
+    // PROMPT 1: Your exact setup data generator
+    const SETUP_PROMPT = `
 You are an expert CIE Computer Science (Paper 2 / 9618) Pseudocode Data Generator. 
 Analyze the uploaded exam question and generate ONLY the setup pseudocode (variable declarations and mock test data).
 
@@ -42,6 +44,22 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
   Class[1].Name <- "Alice"
 `;
 
+    // PROMPT 2: The new solution generator
+    const SOLUTION_PROMPT = `
+You are an expert CIE Computer Science (Paper 2 / 9618) Pseudocode Solver. 
+Analyze the uploaded exam question and generate ONLY the final algorithmic solution using strict PapersDock CIE syntax.
+
+STRICT OUTPUT RULES:
+1. ONLY SOLVE THE ALGORITHM. Do not provide mock setup data unless explicitly asked by the exam question.
+2. NO CONVERSATIONAL TEXT.
+3. SEPERATE THE CODE FROM YOUR THOUGHTS.
+4. ANY THINKING TO BE DONE SHOULD HAVE '//' BEFORE IT.
+5. Use strictly correct CIE syntax (DECLARE, <-, etc.).
+`;
+
+    // Choose which prompt to send to Groq based on the button clicked
+    const finalPrompt = mode === 'solution' ? SOLUTION_PROMPT : SETUP_PROMPT;
+
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -55,7 +73,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
           {
             role: 'user',
             content: [
-              { type: 'text', text: SYSTEM_PROMPT },
+              { type: 'text', text: finalPrompt },
               {
                 type: 'image_url',
                 image_url: {
@@ -79,8 +97,7 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
 
     let code = data.choices?.[0]?.message?.content || '';
 
-    // --- PROGRAMMATIC REMOVAL OF THOUGHTS ---
-    // This function completely deletes the <think>...</think> block and everything inside it
+    // Programmatic removal of thoughts
     code = code.replace(/<think>[\s\S]*?<\/think>/gi, '');
 
     // Strip markdown code block ticks
@@ -88,8 +105,8 @@ CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
     code = code.replace(/```/g, '');
     code = code.trim();
 
-    // Failsafe: Ensure it ends with the required separator
-    if (!code.includes('// --- WRITE YOUR SOLUTION BELOW ---')) {
+    // Ensure it ends with the required separator (only if we generated setup code)
+    if (mode !== 'solution' && !code.includes('// --- WRITE YOUR SOLUTION BELOW ---')) {
         code += '\n\n// --- WRITE YOUR SOLUTION BELOW ---';
     }
 
