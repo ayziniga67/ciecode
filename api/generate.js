@@ -25,9 +25,10 @@ STRICT OUTPUT RULES:
 3. SEPERATE THE CODE FROM YOUR THOUGHTS.
 4. ANY THINKING TO BE DONE SHOULD HAVE '//' BEFORE IT OR BEFORE THE FOLLOWING LINE STARTS.
 5. ENDING: Always end the output strictly with: // --- WRITE YOUR SOLUTION BELOW ---
-6. AFTER COMPLETING COMPILE THE CODE AT THE END
+6. AFTER COMPLETING store a value in a variable so that we can use the value to check
 
 CIE SYNTAX RULES (PAPERSDOCK COMPILER STRICT):
+-If the question mentions the 'file already exist' then create the file and close it  
 - Keywords: Must be UPPERCASE (DECLARE, TYPE, ENDTYPE, ARRAY, OF, INTEGER, REAL, STRING, BOOLEAN, CHAR, DATE).
 - Assignment: Must use the left arrow (<-). Never use = or :=.
 - Variables: DECLARE VariableName : DATA_TYPE
